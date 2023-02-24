@@ -1,15 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
-</head>
-<body>
-  
-</body>
-<script>
   /**
    * 知识点：精准的秒杀倒计时
    * 原理：利用setTimeout来实现倒计时，每次延迟执行的时间为：间隔时间 减去 代码运行的时间，即：当前时间 - 倒计时开始时间 + 倒计时次数 * 时间间隔
@@ -45,5 +33,3 @@
   createCountDown(10000, 1000, function(offset, nextInterval, totalTime) {
     console.log('偏差时间为：'+ offset + 'ms，下一次执行为' + nextInterval +'ms后，还剩下' + totalTime + 'ms');
   })
-</script>
-</html>
