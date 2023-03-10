@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <div id="app">msg</div>
+    <button id="btn">change msg</button>
+</body>
+<script>
+    /** 下列例子的亮点：利用getOldVal触发get方法，从而挂载监听器。**/
+
+
+    // 相当于vue中的data
+    const data = {
+        msg: 'hello word!'
+    };
+
+    // 使用proxy生成响应性数据
+    function reactive(data) {
+        // 一整个data对应一个Dep
+        // 这应该是diff算法产生的必要吧。每个组件收集总的依赖，当依赖改变，更新整个组件，这时利用diff算法去优化
+        const dep = new Dep(); 
+        const proxy_data = new Proxy(data, {
+            get(target, key) {
+                //  精妙之处：只有创建监听器的时候Dep.Target才会有值。
+                Dep.target && dep.addWatcher(Dep.target);
+                return target[key];
+            },
+            set(target, key, newVal) {
+                target[key] = newVal;
+                // 赋完值再去通知
+                dep.notify();
+            }
+        });
+        return proxy_data;
+    }
+
+    // 依赖，相当于观察目标
+    class Dep {
+        constructor() {
+            // 维护监听器list
+            this.watcherList = [];
+        }
+        // 维护监听器list
+        addWatcher(watcher) {
+            this.watcherList.push(watcher);
+        }
+        // 维护监听器list
+        delWatcher(watcher) {
+            const index = this.watcherList.findIndex(item => item === watcher);
+            if(index > -1) {
+                this.watcherList.splice(index, 1);
+            }
+        }
+        // 监听目标这个角色的的特色功能：通知监听者
+        notify() {
+            this.watcherList.forEach(watch => {
+                watch.update();
+            })
+        }
+    }
+
+    // 监听器
+    class Watcher {
+        constructor(target, key, cb) {
+            this.callback = cb;
+            this.key = key;
+            this.target = target;
+            this.oldVal = this.getOldVal(target, key);
+        }
+        /**
+         *  精妙之处：利用取值，触发get方法，从而把监听器加到监听目标上
+         * 
+         * **/
+        getOldVal(target, key) {
+            Dep.target = this;
+            const oldVal = target[key]; // 触发get方法
+            Dep.target = null;
+            return oldVal;
+        }
+        update() {
+            this.callback(this.oldVal, this.target[this.key]);
+        }
+    }
+
+    // 渲染器
+    class Render {
+        constructor(data, el) {
+            this.el = el;
+            this.key = el.innerText;
+            this.data = data;
+            this.render();
+        }
+        render() {
+            this.el.innerHTML = this.data[this.key];
+            new Watcher(this.data, this.key, (oldVal, newVal) => {
+                this.el.innerHTML = newVal;
+            })
+        }
+    }
+
+
+
+    const proxy_data = reactive(data); // 生成响应性数据
+    new Render(proxy_data, document.getElementById('app')); // 页面渲染
+
+
+    // 挂载事件，根据事件去修改data
+    const o_btn = document.getElementById('btn');
+    o_btn.addEventListener('click', () => {
+        proxy_data.msg = `hello Vue3.0! ---${new Date()}`
+    })
+</script>
+</html>
