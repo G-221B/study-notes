@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        #box {
+            width: 0px;
+            height: 30px;
+            background-color: aqua;
+        }
+    </style>
+</head>
+<body>
+    <div id="box"></div>
+    <script>
+        /*
+            关于requestAnimationFrame说明：该api接收一个callback，在下一次的动画帧的时候执行该callback。
+        */
+        const o_box = document.querySelector('#box');
+        const fillSize = 100;
+        function fill() {
+            requestAnimationFrame(() => {
+                const width = o_box.offsetWidth + 1;
+                o_box.style.width = `${width}px`;
+                if(width < fillSize) {
+                    fill();
+                }
+            })
+        }
+        fill();
+    </script>
+</body>
+</html>

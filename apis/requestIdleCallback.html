@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <script>
+        /*  浏览器一帧干的事情：
+                处理用户input\点击事件 → 处理setTimeout等异步任务 → 开始帧（浏览器缩放、滚动） → requestAnimationFrame → 布局 → 绘制 → requestIdleCallback
+            关于requestIdleCallback的介绍：该api接收两个参数，callback和options。
+                callback：该fn是在浏览器执行完一帧的任务时，如果还剩余空余时间，就调用该callback
+                options：该参数是一个对象，里面可以配置timeout属性。如果超过timeout的时间，callback还没有执行，则将callback强制加入任务队列中执行。
+            关于callback的事件参数deadline说明：
+                timeRemaining方法：执行该方法，可以查询还剩余多少空余事件
+                didTimeout字段：该字段表示callback是否是超出设定的timeout时间，强制执行的。
+        */
+        const taskList = [
+            () => {
+                console.log('task 1');
+            },
+            () => {
+                console.log('task 2');
+                const startTime = new Date().getTime();
+                while(new Date().getTime() - startTime < 30) {}
+            },
+            () => {
+                console.log('task 3');
+            },
+        ];
+        function runTask(taskList) {
+            const requestIdleCallbackId = requestIdleCallback((deadline) => {
+                console.log(`还剩余${deadline.timeRemaining()}ms空闲时间执行~`)
+                while((deadline.timeRemaining() > 0 || deadline.didTimeout) && taskList.length) {
+                    taskList.shift()();
+                }
+                if(taskList.length) {
+                    runTask(taskList);
+                } else {
+                    cancelIdleCallback(requestIdleCallbackId);
+                } 
+            }, {
+                timeout: 1000
+            })
+        }
+        runTask(taskList);
+    </script>
+</body>
+</html>
