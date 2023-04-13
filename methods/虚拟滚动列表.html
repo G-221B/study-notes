@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        #box {
+            position: absolute;
+            top: 300px;
+            left: 300px;
+            width: 100px;
+            height: 100px;
+            overflow-y: scroll;
+            overflow-x: hidden;
+        }
+        .item {
+            width: 100px;
+            height: 20px;
+            border: 1px solid rebeccapurple;
+            box-sizing: border-box;
+        }
+        #listbox {
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <!-- box: 滚动容器 -->
+    <div id="box">
+        <!-- listbox：设置总高度的高度容器 -->
+        <div id="listbox">
+            <!-- list：用于设置marginTop的容器 -->
+            <div id="list">
+                <div class="item">0</div>
+                <div class="item">1</div>
+                <div class="item">2</div>
+                <div class="item">3</div>
+                <div class="item">4</div>
+            </div>
+        </div>
+    </div>
+</body>
+<script>
+    // 虚拟滚动列表主要利用scrollTop来计算渲染实现。
+    let arr = [];
+    const showSize = 5;
+    const itemHeight = 20;
+    for(let i = 0; i < 20; i++) {
+        arr.push(i);
+    }
+    const oList = document.getElementById('list');
+    const oBox = document.getElementById('box');
+    const oListBox = document.getElementById('listbox');
+    oListBox.style.height = `${arr.length * itemHeight}px`;
+    oBox.addEventListener('scroll', (e) => {
+        const scrollTop = e.target.scrollTop;
+        let startIndex = Math.ceil(scrollTop / itemHeight);
+        // 空值保护
+        if(startIndex + showSize >= arr.length) {
+            startIndex = arr.length - showSize;
+        }
+        const endIndex = startIndex + showSize;
+        let domText = '';
+        while(startIndex < endIndex) {
+            domText += `<div class="item">${arr[startIndex]}</div>`;
+            startIndex++;
+        }
+        oList.innerHTML = domText;
+        oList.style.marginTop = `${scrollTop}px`;
+    });
+    
+</script>
+</html>
