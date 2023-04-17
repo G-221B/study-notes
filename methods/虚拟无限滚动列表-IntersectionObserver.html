@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        #box {
+            width: 100%;
+            height: 400px;
+            overflow-y: scroll;
+        }
+        .item {
+            width: 100%;
+            height: 40px;
+            border-bottom: 1px solid burlywood;
+            box-sizing: border-box;
+        }
+        .heightBox {
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <!-- 总容器 -->
+    <div id="box">
+        <!-- 用于设置总高度的容器 -->
+        <div class="heightBox">
+            <!-- 用于设置padding的box -->
+            <div class="paddingBox">
+                <div class="item firstItem"></div>
+                <div class="item"></div>
+                <div class="item"></div>
+                <div class="item"></div>
+                <div class="item"></div>
+                <div class="item"></div>
+                <div class="item"></div>
+                <div class="item"></div>
+                <div class="item"></div>
+                <div class="item"></div>
+                <div class="item"></div>
+                <div class="item"></div>
+                <div class="item"></div>
+                <div class="item"></div>
+                <div class="item"></div>
+                <div class="item"></div>
+                <div class="item"></div>
+                <div class="item"></div>
+                <div class="item"></div>
+                <div class="item lastItem"></div>
+            </div>
+        </div>
+    </div>
+</body>
+<script>
+    /** 利用IntersectionObserver来实现虚拟无限滚动列表的关键知识点：
+     *      1.需要初始化容器，因为IntersectionObserver时基于页面容器显示和隐藏的.
+     *      2.对元素进行监听后，callback会立马触发，因为callback会在元素显示/隐藏切换的时候进行触发，初始化也算。
+     *      3.利用padding来模拟滚动。
+     *      4.利用目标元素的y坐标来计算是否需要加载下一页。
+     * 
+     * 
+    */
+
+
+    const o_items = document.querySelectorAll('.item');
+
+    // 创建假数据
+    const data = [];
+    for(let i = 0; i < 100; i++) {
+        data.push(i);
+    }
+
+    function renderItemByIndex(startIndex) {
+        o_items.forEach(item => {
+            item.innerHTML = data[startIndex++];
+        })
+    }
+    
+    class ListScroll{
+        constructor(options) {
+            this.itemHeight = options.itemHeight; // 单个item的高度
+            this.pageSize = options.pageSize; // 一页有多少条数据
+            this.dataSize = options.dataSize; // list的总条数
+            this.renderFn = options.renderFn; // 自定义更新dom的fn
+
+            // 需要用到的dom
+            this.el_heightBox = options.el_heightBox;
+            this.el_paddingBox = options.el_paddingBox;
+            this.el_firstBox = options.el_firstBox;
+            this.el_lastBox = options.el_lastBox;
+
+            // 初始化默认数据
+            this.domDataCache = {
+                currentPaddingTop: 0,
+                currentPaddingBottom: 0,
+                // 这里是初始化到了正确的值，因为firstItem初始化y就是0
+                firstItemPos_Y: 0, 
+                // 这里初始化的值是错误的，但是稍后就会被覆盖掉
+                // 初始化lastItem时，由于它是隐藏的，会触发隐藏逻辑，进行更新lastItemPos_Y
+                lastItemPos_Y: 0, 
+                currentIndex: 0
+            }
+        }
+        init() {
+            // 初始话总高度
+            this.initHeightBox();
+            // 初始化箭头逻辑
+            this.initIntersectionObserver();
+        }
+        initHeightBox() {
+            this.el_heightBox.style.height = `${this.dataSize * this.itemHeight}px`;
+        }
+        initIntersectionObserver() {
+            const callback = (entries) => {
+                entries.forEach(entry => {
+                    if(this.el_firstBox === entry.target) {
+                        this.topItemCallback(entry);
+                    } else if (this.el_lastBox === entry.target) {
+                        this.bottomItemCallback(entry);
+                    }
+                })
+            };
+            const observer = new IntersectionObserver(callback, {
+                root: this.el_box
+            });
+            observer.observe(this.el_firstBox);
+            observer.observe(this.el_lastBox);
+        }
+        topItemCallback(entry) {
+            const currentY = entry.boundingClientRect.top;
+            let currentIndex = this.domDataCache.currentIndex;
+            const isIntersecting = entry.isIntersecting;
+            if(
+                // isIntersecting为true，代表监听的模板在视口，用户可以看见。
+                isIntersecting && 
+                // 防止重复渲染：在到顶部的时候，你上下滑动时，会导致firstBox重复出现，这是就需要加个条件，当前的目标的位置必须比之前的地位的要高
+                currentY > this.domDataCache.firstItemPos_Y
+            ) {
+                currentIndex = this.getIndex(true);
+                this.renderFn(currentIndex); // 根据下标重新渲染
+                this.adjustPadding(true); // 设置padding，模拟滚动效果
+                this.updateDomDataCache({
+                    currentIndex // 更新下标
+                })
+            } else {
+                // 当目标隐藏时，记录它的y坐标
+                // 对于firstItem，隐藏的时机：
+                //   1.用户往下滚动，隐藏。
+                //   2.用户往上划，触发加载上一页，加载完后，此时首个item时隐藏的。
+                this.updateDomDataCache({
+                    firstItemPos_Y: currentY,
+                })
+            }
+        }
+        bottomItemCallback(entry) {
+            const currentY = entry.boundingClientRect.top;
+            let currentIndex = this.domDataCache.currentIndex;
+            const isIntersecting = entry.isIntersecting;
+            if(
+                isIntersecting &&
+                currentY < this.domDataCache.lastItemPos_Y
+            ) {
+                currentIndex = this.getIndex(false);
+                this.renderFn(currentIndex);
+                this.adjustPadding(false);
+                this.updateDomDataCache({
+                    currentIndex // 更新下标
+                })
+            } else {
+                // 当目标隐藏时，记录它的y坐标
+                // 对于lastItem的隐藏场景：
+                //   1.页面初始化时，是看不到lastItem的。
+                //   2.用户往下滑动，触发加载下一页，加载完后，这时lastItem时隐藏的。
+                this.updateDomDataCache({
+                    lastItemPos_Y: currentY,
+                })
+            }
+        }
+        getIndex(isScrollTop) {
+            let currentIndex = this.domDataCache.currentIndex;
+            if(isScrollTop) {
+                currentIndex = currentIndex - this.pageSize <= 0 ? 0 : currentIndex - this.pageSize;
+            } else {
+                currentIndex = currentIndex + this.pageSize >= this.dataSize ? this.dataSize : currentIndex + this.pageSize;
+            }
+            this.updateDomDataCache({
+                currentIndex
+            })
+            return currentIndex;
+        }
+        adjustPadding(isScrollTop) {
+            let currentPaddingTop = this.domDataCache.currentPaddingTop;
+            let currentPaddingBottom = this.domDataCache.currentPaddingBottom;
+
+            if(isScrollTop) {
+                currentPaddingTop = currentPaddingTop - (this.pageSize * this.itemHeight);
+                currentPaddingBottom = currentPaddingBottom + (this.pageSize * this.itemHeight);
+            } else {
+                currentPaddingTop = currentPaddingTop + (this.pageSize * this.itemHeight);
+                currentPaddingBottom = currentPaddingBottom - (this.pageSize * this.itemHeight);
+            }
+            if(currentPaddingTop < 0) {
+                currentPaddingTop = 0;
+            }
+            if(currentPaddingBottom < 0) {
+                currentPaddingBottom = 0;
+            }
+            this.el_paddingBox.style.paddingBottom = `${currentPaddingBottom}px`;
+            this.el_paddingBox.style.paddingTop = `${currentPaddingTop}px`;
+            this.updateDomDataCache({
+                currentPaddingBottom,
+                currentPaddingTop
+            })
+        }
+        updateDomDataCache(data) {
+            Object.assign(this.domDataCache, data);
+        }
+    }
+
+    const listScroll = new ListScroll({
+        itemHeight: 40,
+        pageSize: 10,
+        dataSize: data.length,
+        renderFn: renderItemByIndex,
+        el_heightBox: document.querySelector('.heightBox'),
+        el_paddingBox: document.querySelector('.paddingBox'),
+        el_firstBox: document.querySelector('.firstItem'),
+        el_lastBox: document.querySelector('.lastItem'),
+        el_box: document.querySelector('.box')
+    });
+
+    renderItemByIndex(0);
+
+    listScroll.init();
+</script>
+</html>
